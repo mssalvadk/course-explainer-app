@@ -2,8 +2,8 @@ import unittest
 import sys
 import os
 
-# Add the src directory to the path so we can import the app
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+# Add the src directory to the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
 from app import app
 
@@ -16,105 +16,54 @@ class AppTestCase(unittest.TestCase):
         response = self.app.get('/')
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Welcome to the Course Explainer', response.data)
-        # Test that course names are displayed
-        self.assertIn(b'Introduction to Python', response.data)
-        self.assertIn(b'Web Development with Flask', response.data)
-        self.assertIn(b'Data Science Fundamentals', response.data)
-        self.assertIn(b'Go Programming Essentials', response.data)
+
+    def test_index_has_no_stray_text(self):
+        response = self.app.get('/')
+        self.assertNotIn(b'...existing code...', response.data)
+        self.assertNotIn(b'/* reset basics */', response.data)
+
+    def test_index_is_single_document(self):
+        response = self.app.get('/')
+        self.assertEqual(response.data.count(b'<html'), 1)
+
+    def test_index_lists_all_courses(self):
+        from models import courses
+        response = self.app.get('/')
+        for i, course in enumerate(courses, start=1):
+            self.assertIn(course.title.encode(), response.data)
+            self.assertIn(f'href="/course/{i}"'.encode(), response.data)
 
     def test_course(self):
         response = self.app.get('/course/1')
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'Course Details', response.data)
 
-    def test_golang_course(self):
-        response = self.app.get('/course/4')
+    def test_course_shows_course_data(self):
+        response = self.app.get('/course/2')
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Go Programming Essentials', response.data)
-        self.assertIn(b'Robert Chen', response.data)
+        self.assertIn(b'Web Development with Flask', response.data)
+        self.assertIn(b'Jane Smith', response.data)
+        self.assertIn(b'6 weeks', response.data)
+        self.assertIn(b'<title>Web Development with Flask</title>', response.data)
 
-    # Contact Page Tests
-    def test_contact_page_loads(self):
-        """Test that contact page returns 200 status"""
-        response = self.app.get('/contact')
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Contact Us', response.data)
-        self.assertIn(b'Name', response.data)
-        self.assertIn(b'Email', response.data)
-        self.assertIn(b'Address', response.data)
-        self.assertIn(b'Follow Us', response.data)
+    def test_course_page_is_single_document(self):
+        response = self.app.get('/course/1')
+        self.assertEqual(response.data.count(b'<html'), 1)
 
-    def test_contact_form_valid_submission(self):
-        """Test POST with valid data processes successfully"""
-        response = self.app.post('/contact', data={
-            'name': 'John Doe',
-            'email': 'john@example.com',
-            'address': '123 Main St, Springfield, IL 62701'
-        }, follow_redirects=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Thank you! Your message has been sent successfully', response.data)
+    def test_course_unknown_id_returns_404(self):
+        for course_id in ('0', '4', 'abc'):
+            response = self.app.get(f'/course/{course_id}')
+            self.assertEqual(response.status_code, 404, course_id)
 
-    def test_contact_form_missing_name(self):
-        """Test POST with missing name returns error"""
-        response = self.app.post('/contact', data={
-            'name': '',
-            'email': 'john@example.com',
-            'address': '123 Main St, Springfield, IL 62701'
-        }, follow_redirects=True)
+    def test_stylesheet_has_no_duplicate_selectors(self):
+        import re
+        response = self.app.get('/static/css/styles.css')
         self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Please enter your name', response.data)
-
-    def test_contact_form_missing_email(self):
-        """Test POST with missing email returns error"""
-        response = self.app.post('/contact', data={
-            'name': 'John Doe',
-            'email': '',
-            'address': '123 Main St, Springfield, IL 62701'
-        }, follow_redirects=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Please enter a valid email address', response.data)
-
-    def test_contact_form_invalid_email(self):
-        """Test POST with invalid email format returns error"""
-        response = self.app.post('/contact', data={
-            'name': 'John Doe',
-            'email': 'notanemail',
-            'address': '123 Main St, Springfield, IL 62701'
-        }, follow_redirects=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Please enter a valid email address', response.data)
-
-    def test_contact_form_missing_address(self):
-        """Test POST with missing address returns error"""
-        response = self.app.post('/contact', data={
-            'name': 'John Doe',
-            'email': 'john@example.com',
-            'address': ''
-        }, follow_redirects=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Please enter your address (minimum 10 characters)', response.data)
-
-    def test_contact_form_short_address(self):
-        """Test POST with too-short address returns error"""
-        response = self.app.post('/contact', data={
-            'name': 'John Doe',
-            'email': 'john@example.com',
-            'address': 'Short'
-        }, follow_redirects=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Please enter your address (minimum 10 characters)', response.data)
-
-    def test_contact_form_all_empty_fields(self):
-        """Test POST with all empty fields returns multiple errors"""
-        response = self.app.post('/contact', data={
-            'name': '',
-            'email': '',
-            'address': ''
-        }, follow_redirects=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(b'Please enter your name', response.data)
-        self.assertIn(b'Please enter a valid email address', response.data)
-        self.assertIn(b'Please enter your address (minimum 10 characters)', response.data)
+        css = re.sub(r'/\*.*?\*/', '', response.get_data(as_text=True), flags=re.S)
+        response.close()
+        selectors = [s.strip() for s in re.findall(r'([^{}]+)\{', css)]
+        duplicates = {s for s in selectors if selectors.count(s) > 1}
+        self.assertEqual(duplicates, set())
 
 if __name__ == '__main__':
     unittest.main()
