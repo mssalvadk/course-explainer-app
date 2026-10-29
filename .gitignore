@@ -209,3 +209,7 @@ __marimo__/
 # Claude Code local settings
 .claude/settings.local.json
 .claude/hook.log
+
+# Playwright verification screenshots and MCP output
+test-output/
+.playwright-mcp/

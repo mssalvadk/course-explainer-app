@@ -46,6 +46,21 @@ class AppTestCase(unittest.TestCase):
         self.assertIn(b'6 weeks', response.data)
         self.assertIn(b'<title>Web Development with Flask</title>', response.data)
 
+    def test_course_shows_topics(self):
+        from models import courses
+        for i, course in enumerate(courses, start=1):
+            response = self.app.get(f'/course/{i}')
+            self.assertIn(b'Topics Covered', response.data)
+            for topic in course.topics:
+                self.assertIn(f'<li>{topic}</li>'.encode(), response.data)
+
+    def test_course_without_topics_hides_section(self):
+        from models import Course
+        from flask import render_template
+        with app.test_request_context():
+            html = render_template('course.html', course=Course('T', 'D', 'I', '1 week'))
+        self.assertNotIn('Topics Covered', html)
+
     def test_course_page_is_single_document(self):
         response = self.app.get('/course/1')
         self.assertEqual(response.data.count(b'<html'), 1)
