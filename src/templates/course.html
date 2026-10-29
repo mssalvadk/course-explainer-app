@@ -8,5 +8,15 @@
     <p>{{ course.description }}</p>
     <h2>Instructor: {{ course.instructor }}</h2>
     <h3>Duration: {{ course.duration }}</h3>
+    {% if course.topics %}
+    <section class="course-topics">
+        <h2>Topics Covered</h2>
+        <ul>
+            {% for topic in course.topics %}
+            <li>{{ topic }}</li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
 </div>
 {% endblock %}
